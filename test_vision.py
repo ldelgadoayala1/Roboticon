@@ -1,5 +1,5 @@
 import cv2
-from vision import HandDetector
+from vision.detector import HandDetector
 
 def fingers_to_text(fingers):
     total = sum(fingers)

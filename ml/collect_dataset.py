@@ -7,7 +7,7 @@ sys.path.append(".")
 
 from vision.detector import HandDetector
 
-LABEL = "scissors"  # cambiar: rock/paper/scissors
+LABEL = "paper"  # cambiar: rock/paper/scissors
 
 OUTPUT_FILE = "ml/dataset.csv"
 

@@ -1,19 +1,22 @@
 import cv2
+import time
 
 from vision.detector import HandDetector
-
 from ml.predict_model import GestureModel
-
 from serial_controller import RobotHandController
-
 from game.game_manager import GameManager
-
 from ui.hud import HUD
 
 
 class RoboCachipunApp:
 
-    PREDICTION_THRESHOLD = 15
+    STATE_MENU = "MENU"
+
+    STATE_COUNTDOWN = "COUNTDOWN"
+
+    STATE_RESULT = "RESULT"
+
+    STATE_ASK_CONTINUE = "ASK_CONTINUE"
 
     ROBOT_COMMANDS = {
 
@@ -34,29 +37,23 @@ class RoboCachipunApp:
 
         self.cap = cv2.VideoCapture(0)
 
-        self.last_prediction = ""
+        self.state = self.STATE_MENU
 
-        self.prediction_counter = 0
+        self.countdown_words = [
+            "CA",
+            "CHI",
+            "PUN"
+        ]
 
-    def process_prediction(self, prediction):
+        self.countdown_index = 0
 
-        if prediction == self.last_prediction:
+        self.last_countdown_time = time.time()
 
-            self.prediction_counter += 1
+        self.result_time = 0
 
-        else:
-
-            self.prediction_counter = 0
-
-            self.last_prediction = prediction
-
-        if self.prediction_counter >= self.PREDICTION_THRESHOLD:
-
-            self.prediction_counter = 0
-
-            return True
-
-        return False
+    # ==========================================
+    # ARDUINO
+    # ==========================================
 
     def send_robot_command(self, move):
 
@@ -75,48 +72,194 @@ class RoboCachipunApp:
                 f"Error enviando comando: {e}"
             )
 
-    def draw_ui(self, frame, prediction):
+    # ==========================================
+    # RESET ROUND
+    # ==========================================
+
+    def reset_round(self):
+
+        self.countdown_index = 0
+
+        self.last_countdown_time = time.time()
+
+    # ==========================================
+    # MENU
+    # ==========================================
+
+    def draw_menu(self, frame):
 
         HUD.draw_text(
             frame,
-            f"Jugador: {prediction}",
-            (20,50),
-            (0,255,0)
+            "ROBOCACHIPUN",
+            (140, 120),
+            (0, 255, 255),
+            2
+        )
+
+        HUD.draw_text(
+            frame,
+            "Presione ENTER para comenzar",
+            (90, 260),
+            (255, 255, 255),
+            1
+        )
+
+    # ==========================================
+    # COUNTDOWN
+    # ==========================================
+
+    def handle_countdown(self, frame):
+
+        current_time = time.time()
+
+        if current_time - self.last_countdown_time >= 1:
+
+            self.countdown_index += 1
+
+            self.last_countdown_time = current_time
+
+        if self.countdown_index < 3:
+
+            word = self.countdown_words[
+                self.countdown_index
+            ]
+
+            HUD.draw_text(
+                frame,
+                word,
+                (250, 240),
+                (0, 255, 255),
+                3
+            )
+
+        else:
+
+            self.resolve_round()
+
+            self.state = self.STATE_RESULT
+
+            self.result_time = time.time()
+
+    # ==========================================
+    # RESOLVER PARTIDA
+    # ==========================================
+
+    def resolve_round(self):
+
+        ret, frame = self.cap.read()
+
+        if not ret:
+            return
+
+        hand = self.detector.detect(frame)
+
+        if not hand:
+
+            self.game.player_move = "NO DETECTADO"
+
+            self.game.robot_move = "-"
+
+            self.game.result = "MANO NO DETECTADA"
+
+            return
+
+        prediction = self.model.predict(
+            hand
+        )
+
+        result = self.game.play_round(
+            prediction
+        )
+
+        self.send_robot_command(
+            result["robot"]
+        )
+
+        print(result)
+
+    # ==========================================
+    # RESULTADO
+    # ==========================================
+
+    def draw_result(self, frame):
+
+        HUD.draw_text(
+            frame,
+            f"Jugador: {self.game.player_move}",
+            (40, 80),
+            (0, 255, 0),
+            1
         )
 
         HUD.draw_text(
             frame,
             f"Robot: {self.game.robot_move}",
-            (20,100),
-            (255,0,0)
+            (40, 140),
+            (255, 0, 0),
+            1
         )
 
         HUD.draw_text(
             frame,
-            f"Resultado: {self.game.result}",
-            (20,150),
-            (0,0,255)
-        )
-
-        status = (
-            "Arduino conectado"
-            if self.robot.serial_connection
-            else "Arduino desconectado"
-        )
-
-        color = (
-            (0,255,0)
-            if self.robot.serial_connection
-            else (0,0,255)
+            self.game.result,
+            (180, 240),
+            (0, 0, 255),
+            2
         )
 
         HUD.draw_text(
             frame,
-            status,
-            (20,200),
-            color,
-            0.8
+            f"Jugador: {self.game.player_score}",
+            (40, 340),
+            (0, 255, 0),
+            1
         )
+
+        HUD.draw_text(
+            frame,
+            f"Robot: {self.game.robot_score}",
+            (40, 390),
+            (255, 0, 0),
+            1
+        )
+
+        if time.time() - self.result_time >= 3:
+
+            self.state = self.STATE_ASK_CONTINUE
+
+    # ==========================================
+    # CONTINUAR
+    # ==========================================
+
+    def draw_continue(self, frame):
+
+        HUD.draw_text(
+            frame,
+            "Desea continuar?",
+            (150, 180),
+            (255, 255, 255),
+            1.5
+        )
+
+        HUD.draw_text(
+            frame,
+            "ENTER = SI",
+            (210, 260),
+            (0, 255, 0),
+            1
+        )
+
+        HUD.draw_text(
+            frame,
+            "ESC = NO",
+            (220, 320),
+            (0, 0, 255),
+            1
+        )
+
+    # ==========================================
+    # MAIN LOOP
+    # ==========================================
 
     def run(self):
 
@@ -127,49 +270,69 @@ class RoboCachipunApp:
             if not ret:
                 break
 
-            hand = self.detector.detect(frame)
+            key = cv2.waitKey(1)
 
-            prediction = ""
+            # ==========================================
+            # MENU
+            # ==========================================
 
-            if hand:
+            if self.state == self.STATE_MENU:
 
-                self.detector.draw_landmarks(
-                    frame,
-                    hand
-                )
+                self.draw_menu(frame)
 
-                prediction = self.model.predict(
-                    hand
-                )
+                if key == 13:
 
-                if self.process_prediction(
-                    prediction
-                ):
+                    self.reset_round()
 
-                    result = self.game.play_round(
-                        prediction
-                    )
+                    self.state = self.STATE_COUNTDOWN
 
-                    self.send_robot_command(
-                        result["robot"]
-                    )
+            # ==========================================
+            # COUNTDOWN
+            # ==========================================
 
-                    print(result)
+            elif self.state == self.STATE_COUNTDOWN:
 
-            self.draw_ui(
-                frame,
-                prediction
-            )
+                self.handle_countdown(frame)
+
+            # ==========================================
+            # RESULT
+            # ==========================================
+
+            elif self.state == self.STATE_RESULT:
+
+                self.draw_result(frame)
+
+            # ==========================================
+            # ASK CONTINUE
+            # ==========================================
+
+            elif self.state == self.STATE_ASK_CONTINUE:
+
+                self.draw_continue(frame)
+
+                if key == 13:
+
+                    self.reset_round()
+
+                    self.state = self.STATE_COUNTDOWN
+
+            # ==========================================
+            # EXIT
+            # ==========================================
+
+            if key == 27:
+                break
 
             cv2.imshow(
                 "RoboCachipun",
                 frame
             )
 
-            if cv2.waitKey(1) == 27:
-                break
-
         self.close()
+
+    # ==========================================
+    # CLOSE
+    # ==========================================
 
     def close(self):
 

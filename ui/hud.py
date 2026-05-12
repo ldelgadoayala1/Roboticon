@@ -8,7 +8,7 @@ class HUD:
         frame,
         text,
         position,
-        color=(255,255,255),
+        color=(255, 255, 255),
         scale=1
     ):
 

@@ -29,6 +29,10 @@ class GameManager:
 
         self.result = ""
 
+        self.player_score = 0
+
+        self.robot_score = 0
+
     def play_round(self, player_move):
 
         self.player_move = player_move
@@ -38,6 +42,8 @@ class GameManager:
         )
 
         self.result = self.get_result()
+
+        self.update_score()
 
         return {
             "player": self.player_move,
@@ -54,3 +60,13 @@ class GameManager:
             (self.player_move, self.robot_move),
             "ERROR"
         )
+
+    def update_score(self):
+
+        if self.result == "GANASTE":
+
+            self.player_score += 1
+
+        elif self.result == "PERDISTE":
+
+            self.robot_score += 1

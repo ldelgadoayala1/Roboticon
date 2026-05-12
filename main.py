@@ -266,6 +266,7 @@ class RoboCachipunApp:
         while True:
 
             ret, frame = self.cap.read()
+            frame = cv2.flip(frame, 1)
 
             if not ret:
                 break

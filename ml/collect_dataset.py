@@ -24,7 +24,8 @@ with open(OUTPUT_FILE, "a", newline="") as f:
     while True:
 
         ret, frame = cap.read()
-
+        frame = cv2.flip(frame, 1)
+        
         if not ret:
             break
 

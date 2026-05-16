@@ -40,7 +40,7 @@ void moverServo(uint8_t canal, int angulo) {
 
     case MENIQUE:
       minA = 0;
-      maxA = 180;
+      maxA = 190;
       break;
 
     case ANULAR:
@@ -163,6 +163,42 @@ void tijera() {
   );
 }
 
+
+// ======================================================
+// TEST INDIVIDUAL DE SERVOS
+// ======================================================
+
+void testServo(uint8_t canal, String nombre) {
+
+  Serial.println("======================");
+  Serial.print("Testeando: ");
+  Serial.println(nombre);
+
+  Serial.println("0 grados");
+  moverServo(canal, 0);
+
+  delay(1500);
+
+  Serial.println("90 grados");
+  moverServo(canal, 90);
+
+  delay(1500);
+
+  Serial.println("180 grados");
+  moverServo(canal, 180);
+
+  delay(1500);
+
+  Serial.println("Centro");
+  moverServo(canal, 90);
+
+  delay(1500);
+
+  pwm.setPWM(canal, 0, 0);
+
+  Serial.println("Test finalizado");
+  Serial.println("======================");
+}
 // ======================================================
 // SETUP
 // ======================================================
@@ -182,9 +218,11 @@ void setup() {
   Serial.println("1 = Piedra");
   Serial.println("2 = Papel");
   Serial.println("3 = Tijera");
-  Serial.println("4 = Muneca Izquierda");
-  Serial.println("5 = Muneca Derecha");
-  Serial.println("6 = Muneca Centro");
+  Serial.println("4 = Test Menique");
+  Serial.println("5 = Test Anular");
+  Serial.println("6 = Test Corazon");
+  Serial.println("7 = Test Indice");
+  Serial.println("8 = Test Pulgar");
   Serial.println("=================================");
 
   papel();
@@ -233,25 +271,31 @@ void loop() {
 
       case '4':
 
-        Serial.println("MUNECA IZQUIERDA");
-
-        moverMuneca(20);
+        testServo(MENIQUE, "MENIQUE");
 
         break;
 
       case '5':
 
-        Serial.println("MUNECA DERECHA");
-
-        moverMuneca(160);
+        testServo(ANULAR, "ANULAR");
 
         break;
 
       case '6':
 
-        Serial.println("MUNECA CENTRO");
+        testServo(CORAZON, "CORAZON");
 
-        moverMuneca(90);
+        break;
+
+      case '7':
+
+        testServo(INDICE, "INDICE");
+
+        break;
+
+      case '8':
+
+        testServo(PULGAR, "PULGAR");
 
         break;
     }

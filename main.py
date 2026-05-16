@@ -2,7 +2,7 @@ import cv2
 import time
 
 from vision.detector import HandDetector
-from ml.predict_model import GestureModel
+from ml.predict_nn_model import GestureNNModel
 from serial_controller import RobotHandController
 from game.game_manager import GameManager
 from ui.hud import HUD
@@ -29,7 +29,7 @@ class RoboCachipunApp:
 
         self.detector = HandDetector()
 
-        self.model = GestureModel()
+        self.model = GestureNNModel()
 
         self.robot = RobotHandController()
 
@@ -163,12 +163,76 @@ class RoboCachipunApp:
 
             return
 
+        # ==========================================
+        # CONVERTIR LANDMARKS A VECTOR NUMÉRICO
+        # ==========================================
+
+        landmark_list = []
+
+        for landmark in hand:
+
+            landmark_list.extend([
+                landmark.x,
+                landmark.y,
+                landmark.z
+            ])
+
+        # ==========================================
+        # PREDICCIÓN ML
+        # ==========================================
+
         prediction = self.model.predict(
-            hand
+            landmark_list
         )
 
         result = self.game.play_round(
             prediction
+        )
+
+        self.send_robot_command(
+            result["robot"]
+        )
+
+        print(result)
+
+        ret, frame = self.cap.read()
+
+        if not ret:
+            return
+
+        hand = self.detector.detect(frame)
+
+        if not hand:
+
+            self.game.player_move = "NO DETECTADO"
+
+            self.game.robot_move = "-"
+
+            self.game.result = "MANO NO DETECTADA"
+
+            return
+
+        # ==========================================
+        # CONVERTIR LANDMARKS A VECTOR NUMÉRICO
+        # ==========================================
+
+        landmark_list = []
+
+        for landmark in hand:
+
+            landmark_list.extend([
+                landmark.x,
+                landmark.y,
+                landmark.z
+            ])
+
+
+        # ==========================================
+        # PREDICCIÓN ML
+        # ==========================================
+
+        prediction = self.model.predict(
+            landmark_list
         )
 
         self.send_robot_command(
